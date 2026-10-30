@@ -5,7 +5,10 @@ from django.urls import reverse
 from django.views import generic
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.models import User
+from django.contrib.auth.decorators import login_required
+
 from .models import Course, Enrollment, Submission, Choice
+
 import logging
 
 logger = logging.getLogger(__name__)
@@ -35,9 +38,7 @@ def registration_request(request):
                 context
             )
 
-        user_exist = User.objects.filter(username=username).exists()
-
-        if not user_exist:
+        if not User.objects.filter(username=username).exists():
             user = User.objects.create_user(
                 username=username,
                 first_name=first_name,
@@ -145,20 +146,20 @@ def extract_answers(request):
 
     for key in request.POST:
         if key.startswith('choice'):
-            try:
-                choice_id = int(request.POST[key])
-                submitted_answers.append(choice_id)
-            except (ValueError, TypeError):
-                continue
+            values = request.POST.getlist(key)
 
-    return submitted_answers
+            for value in values:
+                try:
+                    submitted_answers.append(int(value))
+                except (ValueError, TypeError):
+                    continue
+
+    return list(set(submitted_answers))
 
 
+@login_required
 def submit(request, course_id):
     course = get_object_or_404(Course, pk=course_id)
-
-    if not request.user.is_authenticated:
-        return redirect('onlinecourse:login')
 
     if request.method != 'POST':
         return redirect(
@@ -176,44 +177,49 @@ def submit(request, course_id):
         enrollment=enrollment
     )
 
-    selected_answers = extract_answers(request)
+    selected_ids = extract_answers(request)
 
-    for choice_id in selected_answers:
+    for choice_id in selected_ids:
         choice = get_object_or_404(
             Choice,
-            pk=choice_id
+            pk=choice_id,
+            question__course=course
         )
         submission.choices.add(choice)
 
     return redirect(
         'onlinecourse:show_exam_result',
+        course_id=course.id,
         submission_id=submission.id
     )
 
 
-def show_exam_result(request, submission_id):
-    if not request.user.is_authenticated:
-        return redirect('onlinecourse:login')
+@login_required
+def show_exam_result(request, course_id, submission_id):
+    course = get_object_or_404(
+        Course,
+        pk=course_id
+    )
 
     submission = get_object_or_404(
         Submission,
         pk=submission_id,
-        enrollment__user=request.user
+        enrollment__user=request.user,
+        enrollment__course=course
     )
-
-    course = submission.enrollment.course
 
     selected_ids = list(
         submission.choices.values_list('id', flat=True)
     )
 
     total_score = 0
-    possible_score = 0
+    possible = 0
     question_results = []
 
+    # Questions are associated with lessons in this version.
     for lesson in course.lesson_set.all():
         for question in lesson.question_set.all():
-            possible_score += question.grade
+            possible += question.grade
 
             is_correct = question.is_get_score(selected_ids)
 
@@ -223,6 +229,7 @@ def show_exam_result(request, submission_id):
             question_results.append({
                 'question': question,
                 'is_correct': is_correct,
+                'selected_ids': selected_ids,
                 'selected_choices': question.choice_set.filter(
                     id__in=selected_ids
                 ),
@@ -231,18 +238,17 @@ def show_exam_result(request, submission_id):
                 ),
             })
 
-    grade = total_score
-
     context = {
         'course': course,
         'submission': submission,
+        'selected_ids': selected_ids,
         'total_score': total_score,
-        'possible_score': possible_score,
-        'grade': grade,
+        'possible': possible,
+        'grade': total_score,
         'question_results': question_results,
         'is_pass': (
-            possible_score > 0
-            and total_score >= possible_score * 0.8
+            possible > 0
+            and total_score >= possible * 0.8
         ),
     }
 

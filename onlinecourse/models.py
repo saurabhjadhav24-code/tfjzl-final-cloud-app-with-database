@@ -1,35 +1,35 @@
 ```python
-# Question model
 class Question(models.Model):
-    lesson = models.ForeignKey(
-        Lesson,
+    course = models.ForeignKey(
+        Course,
         on_delete=models.CASCADE
     )
-    question_text = models.CharField(max_length=200)
+    question_text = models.TextField()
     grade = models.IntegerField(default=1)
 
     def __str__(self):
         return self.question_text
 
     def is_get_score(self, selected_ids):
-        correct_choices = self.choice_set.filter(is_correct=True)
-        selected_correct = correct_choices.filter(
-            id__in=selected_ids
-        ).count()
+        correct_ids = set(
+            self.choice_set.filter(
+                is_correct=True
+            ).values_list('id', flat=True)
+        )
 
-        selected_incorrect = self.choice_set.filter(
-            is_correct=False,
-            id__in=selected_ids
-        ).exists()
+        selected_correct_ids = set(
+            self.choice_set.filter(
+                id__in=selected_ids,
+                is_correct=True
+            ).values_list('id', flat=True)
+        )
 
         return (
-            correct_choices.exists()
-            and selected_correct == correct_choices.count()
-            and not selected_incorrect
+            len(correct_ids) > 0
+            and correct_ids == selected_correct_ids
         )
 
 
-# Choice model
 class Choice(models.Model):
     question = models.ForeignKey(
         Question,
@@ -42,7 +42,6 @@ class Choice(models.Model):
         return self.choice_text
 
 
-# Submission model
 class Submission(models.Model):
     enrollment = models.ForeignKey(
         Enrollment,

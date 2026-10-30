@@ -21,11 +21,19 @@ def registration_request(request):
             context
         )
 
-    elif request.method == 'POST':
-        username = request.POST['username']
-        password = request.POST['psw']
-        first_name = request.POST['firstname']
-        last_name = request.POST['lastname']
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('psw')
+        first_name = request.POST.get('firstname')
+        last_name = request.POST.get('lastname')
+
+        if not username or not password:
+            context['message'] = 'Username and password are required.'
+            return render(
+                request,
+                'onlinecourse/user_registration_bootstrap.html',
+                context
+            )
 
         user_exist = User.objects.filter(username=username).exists()
 
@@ -40,32 +48,32 @@ def registration_request(request):
             return redirect('onlinecourse:index')
 
         context['message'] = 'User already exists.'
-        return render(
-            request,
-            'onlinecourse/user_registration_bootstrap.html',
-            context
-        )
+
+    return render(
+        request,
+        'onlinecourse/user_registration_bootstrap.html',
+        context
+    )
 
 
 def login_request(request):
     context = {}
 
     if request.method == 'POST':
-        username = request.POST['username']
-        password = request.POST['psw']
+        username = request.POST.get('username')
+        password = request.POST.get('psw')
 
-        user = authenticate(username=username, password=password)
+        user = authenticate(
+            request,
+            username=username,
+            password=password
+        )
 
         if user is not None:
             login(request, user)
             return redirect('onlinecourse:index')
 
         context['message'] = 'Invalid username or password.'
-        return render(
-            request,
-            'onlinecourse/user_login_bootstrap.html',
-            context
-        )
 
     return render(
         request,
@@ -114,9 +122,7 @@ def enroll(request, course_id):
     user = request.user
 
     if user.is_authenticated:
-        is_enrolled = check_if_enrolled(user, course)
-
-        if not is_enrolled:
+        if not check_if_enrolled(user, course):
             Enrollment.objects.create(
                 user=user,
                 course=course,
@@ -128,7 +134,7 @@ def enroll(request, course_id):
 
     return HttpResponseRedirect(
         reverse(
-            viewname='onlinecourse:course_details',
+            'onlinecourse:course_details',
             args=(course.id,)
         )
     )
@@ -139,10 +145,8 @@ def extract_answers(request):
 
     for key in request.POST:
         if key.startswith('choice'):
-            value = request.POST[key]
-
             try:
-                choice_id = int(value)
+                choice_id = int(request.POST[key])
                 submitted_answers.append(choice_id)
             except (ValueError, TypeError):
                 continue
@@ -159,7 +163,7 @@ def submit(request, course_id):
     if request.method != 'POST':
         return redirect(
             'onlinecourse:course_details',
-            course_id=course.id
+            pk=course.id
         )
 
     enrollment = get_object_or_404(
@@ -179,7 +183,6 @@ def submit(request, course_id):
             Choice,
             pk=choice_id
         )
-
         submission.choices.add(choice)
 
     return redirect(
@@ -205,10 +208,13 @@ def show_exam_result(request, submission_id):
     )
 
     total_score = 0
+    possible_score = 0
     question_results = []
 
     for lesson in course.lesson_set.all():
         for question in lesson.question_set.all():
+            possible_score += question.grade
+
             is_correct = question.is_get_score(selected_ids)
 
             if is_correct:
@@ -225,11 +231,19 @@ def show_exam_result(request, submission_id):
                 ),
             })
 
+    grade = total_score
+
     context = {
         'course': course,
         'submission': submission,
         'total_score': total_score,
+        'possible_score': possible_score,
+        'grade': grade,
         'question_results': question_results,
+        'is_pass': (
+            possible_score > 0
+            and total_score >= possible_score * 0.8
+        ),
     }
 
     return render(

@@ -1,4 +1,4 @@
-
+```python
 from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
@@ -9,15 +9,27 @@ app_name = 'onlinecourse'
 urlpatterns = [
     # Home page
     path(
-        route='',
-        view=views.CourseListView.as_view(),
+        '',
+        views.CourseListView.as_view(),
         name='index'
     ),
 
     # User authentication
-    path('registration/', views.registration_request, name='registration'),
-    path('login/', views.login_request, name='login'),
-    path('logout/', views.logout_request, name='logout'),
+    path(
+        'registration/',
+        views.registration_request,
+        name='registration'
+    ),
+    path(
+        'login/',
+        views.login_request,
+        name='login'
+    ),
+    path(
+        'logout/',
+        views.logout_request,
+        name='logout'
+    ),
 
     # Course details
     path(
@@ -46,4 +58,8 @@ urlpatterns = [
         views.show_exam_result,
         name='show_exam_result'
     ),
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+] + static(
+    settings.MEDIA_URL,
+    document_root=settings.MEDIA_ROOT
+)
+```

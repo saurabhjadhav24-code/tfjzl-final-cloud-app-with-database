@@ -7,52 +7,32 @@ from . import views
 app_name = 'onlinecourse'
 
 urlpatterns = [
-    # Home page
-    path(
-        '',
-        views.CourseListView.as_view(),
-        name='index'
-    ),
+    path('', views.CourseListView.as_view(), name='index'),
 
-    # User authentication
-    path(
-        'registration/',
-        views.registration_request,
-        name='registration'
-    ),
-    path(
-        'login/',
-        views.login_request,
-        name='login'
-    ),
-    path(
-        'logout/',
-        views.logout_request,
-        name='logout'
-    ),
+    path('registration/', views.registration_request, name='registration'),
 
-    # Course details
+    path('login/', views.login_request, name='login'),
+
+    path('logout/', views.logout_request, name='logout'),
+
     path(
-        '<int:pk>/',
+        'courses/<int:pk>/',
         views.CourseDetailView.as_view(),
         name='course_details'
     ),
 
-    # Enroll in a course
     path(
-        '<int:course_id>/enroll/',
+        'enroll/<int:course_id>/',
         views.enroll,
         name='enroll'
     ),
 
-    # Submit exam answers
     path(
         'submit/<int:course_id>/',
         views.submit,
         name='submit'
     ),
 
-    # Display exam results
     path(
         'exam-result/<int:submission_id>/',
         views.show_exam_result,

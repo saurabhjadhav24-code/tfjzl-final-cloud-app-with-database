@@ -1,0 +1,43 @@
+{% extends 'onlinecourse/base_bootstrap.html' %}
+
+{% block title %}
+    Course Details
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <h2>{{ course.name }}</h2>
+        </div>
+
+        <div class="card-body">
+            <h5 class="card-title">Course Description</h5>
+            <p class="card-text">{{ course.description }}</p>
+
+            <hr>
+
+            <h3>Lessons</h3>
+
+            {% for lesson in course.lesson_set.all %}
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            {{ lesson.title }}
+                        </h5>
+
+                        <p class="card-text">
+                            {{ lesson.content }}
+                        </p>
+                    </div>
+                </div>
+            {% empty %}
+                <p>No lessons available for this course.</p>
+            {% endfor %}
+
+        </div>
+    </div>
+
+</div>
+{% endblock %}
